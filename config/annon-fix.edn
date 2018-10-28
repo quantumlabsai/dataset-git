@@ -1,0 +1,5 @@
+[
+["caj.*"  "caja"]
+["product[_ ]1.*" "product1"]
+["product[ _]2.*" "product2"]
+]
