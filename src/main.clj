@@ -28,7 +28,8 @@
                    (.exists conf))) (format "Archivo no existe!")]
     :assoc-fn (fn [m k v]
                 (merge m (-> (slurp v) (read-string))))]
-   ["-P" "--pre-commit" "Run only pre-commit validation"]
+   ["-E" "--pre-commit" "Run only pre-commit validation"]
+   ["-O" "--post-commit" "Run only post-commit, generat dataset"]
    ["-e" "--ext <str>" "Extensiones validas ej: 'jpg' 'gif' 'png' en las imagenes"
     :validate [(fn [arg]
                  (let [s (S/replace arg " " "")]
@@ -93,6 +94,12 @@
           (cond
             (:pre-commit options)
             (core/pre-commit options)
+
+            (:post-commit options)
+            (core/post-commit options)
+
+            :OTHERWISE
+            (throw (Exception. "Enable --pre-commit or --post-commit"))
 
             ))))
   (catch Throwable e

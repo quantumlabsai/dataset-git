@@ -3,13 +3,9 @@
  :ext ["jpg"],
  :cls2id "config/cls2id.edn",
  :annon-fix "config/annon-fix.edn",
- :top 50,
+ :height 270,
  :width 480,
  :background-percent 100,
- :height 270,
- :left 50
- :with-xml true
- :use-train-val-subdirs true
- :in "./dataset"
- :force true
+ :in "./dataset",
+ :out "./output/__tmp__"
 }

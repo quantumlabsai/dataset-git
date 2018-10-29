@@ -7,80 +7,35 @@
    [clojure.string :as S]
    [clojure.java.shell :as sh]
    [fix-files :as fix]
-   [img-util :as iu]
+   [ds.img-util :as iu]
    [ds.util :as u]
-   [ds-manager :refer [create-ds-info]])
-  ;(:import
-  ; (org.opencv.core Mat Size CvType)
-  ; (org.opencv.imgcodecs Imgcodecs)
-  ; (org.opencv.imgproc Imgproc))
-  )
-
-(def cls<->id (atom {:next 0
-                     :id2cls ["background"]
-                     :cls2id {"background" 0}}))
-
-(defn update-registry [{:keys [next id2cls cls2id] :as registry} name]
-  (if-not (cls2id name)
-    (let [new-val {:next (inc next)
-                   :id2cls (conj id2cls name)
-                   :cls2id (assoc cls2id name (inc next))}]
-      new-val)
-    registry))
-
-(defn register [name]
-  (swap! cls<->id update-registry name))
-
-(defn cls->id [name]
-  (get-in @cls<->id [:cls2id name]))
-
-(defn id->cls [id]
-  (get-in @cls<->id [:id2cls id]))
+   [ds-manager :refer [create-ds-info]]))
 
 (defn reduce2map [object & {:keys [content-extractor] :or {content-extractor identity}}]
-  (reduce (fn [r {:keys [tag content]}]
-            (assoc r tag (content-extractor content)))
-          {}
-          object))
+  (try
+    (reduce
+     (fn [r {:keys [tag content]}]
+       (assoc r tag (content-extractor content)))
+     {}
+     object)
+  (catch Exception e
+    (println "Problems in xml file: " (.getMessage e))
+    nil)))
 
 (defn extract-bbox [class-fixer-fn object]
-  (try
-    (let [class-fixer-fn (or class-fixer-fn identity)
-          obj-map (-> object :content reduce2map)
-          {:keys [xmin xmax ymin ymax] :as bbox} (->
-                                                  obj-map
-                                                  :bndbox
-                                                  (reduce2map :content-extractor #(Integer/parseInt (S/replace (first %) #"\n" ""))))
-          name (-> obj-map :name first)
-          name (if name (-> name (S/replace #"\n" "") class-fixer-fn))]
-      (when name
-        (register name)
-        (assoc bbox :class name)))
-  (catch NullPointerException e
-    (.printStackTrace e))))
-
-(defn get-clipping [height width [out-height out-width :as out-shape] top-clip left-clip]
-  (let [razon-deseada (double (/ out-width out-height))
-        razon-real (double (/ width height))]
-    (if (or (< top-clip 0) (< left-clip 0))
-      {:left-init 0 :right-init (int width)
-       :top-init 0 :bottom-init (int height)
-       :new-width width :new-height height}
-      (if (> razon-real razon-deseada)
-        (let [new-width (* height razon-deseada)
-              eliminar-horizontal (- width new-width)
-              left-init (int (/ (* eliminar-horizontal left-clip) 100))
-              right-init (int (+ left-init new-width))]
-          {:left-init left-init :right-init right-init
-           :top-init 0 :bottom-init (int height)
-           :new-width (int new-width) :new-height height})
-        (let [new-height (/ width razon-deseada)
-              eliminar-vert (- height new-height)
-              top-init (int (/ (* eliminar-vert top-clip) 100))
-              bottom-init (int (+ top-init new-height))]
-          {:left-init 0 :right-init (int width)
-           :top-init top-init :bottom-init bottom-init
-           :new-width width :new-height (int new-height)})))))
+  (let [class-fixer-fn (or class-fixer-fn identity)
+        obj-map (-> object :content reduce2map)
+        bbox (->
+              obj-map
+              :bndbox
+              (reduce2map :content-extractor (fn [content]
+                                               ;(println (pr-str content))
+                                               (Integer/parseInt (S/replace (first content) #"[\n ]+" "")))))
+        ;_ (pp/pprint bbox)
+        name (-> obj-map :name first)
+        name (if name (-> name (S/replace #"\n" "") class-fixer-fn))]
+    (when (and name bbox)
+      (assoc bbox :class name))))
 
 (defn adjust-resize [{:keys [left-init top-init new-width new-height]}
                      [out-height out-width :as out-shape]
@@ -97,48 +52,48 @@
            :xmin (int xmin) :xmax (int xmax)
            :ymin (int ymin) :ymax (int ymax))))
 
-(defmulti fix-it (fn [{:keys [tag]} out-shape bbox class-fixer xml-file]
+(defmulti fix-it (fn [{:keys [tag]} out-shape bbox class-fixer xml-file-name]
                    (or tag :default)))
 
 (defmethod fix-it :default [node out-shape bbox class-fixer xml-file]
   node)
 
-(defmethod fix-it :height [node [height width :as out-shape] bbox class-fixer xml-file]
+(defmethod fix-it :height [node [height width :as out-shape] _ _ _]
   (assoc node :content [(str height)]))
 
-(defmethod fix-it :width [node [height width :as out-shape] bbox class-fixer xml-file]
+(defmethod fix-it :width [node [height width :as out-shape] _ _ _]
   (assoc node :content [(str width)]))
 
-(defmethod fix-it :xmin [node out-shape {:keys [xmin xmax ymin ymax]} class-fixer xml-file]
+(defmethod fix-it :xmin [node out-shape {:keys [xmin xmax ymin ymax]} _ _]
   (assoc node :content [(str xmin)]))
 
-(defmethod fix-it :xmax [node out-shape {:keys [xmin xmax ymin ymax]} class-fixer xml-file]
+(defmethod fix-it :xmax [node out-shape {:keys [xmin xmax ymin ymax]} _ _]
   (assoc node :content [(str xmax)]))
 
-(defmethod fix-it :ymin [node out-shape {:keys [xmin xmax ymin ymax]} class-fixer xml-file]
+(defmethod fix-it :ymin [node out-shape {:keys [xmin xmax ymin ymax]} _ _]
   (assoc node :content [(str ymin)]))
 
-(defmethod fix-it :ymax [node out-shape {:keys [xmin xmax ymin ymax]} class-fixer xml-file]
+(defmethod fix-it :ymax [node out-shape {:keys [xmin xmax ymin ymax]} _ _]
   (assoc node :content [(str ymax)]))
 
-(defmethod fix-it :name [node out-shape bbox class-fixer xml-file]
+(defmethod fix-it :name [node out-shape bbox class-fixer _]
   (let [current-cls (-> node :content first)
         fixed-cls (class-fixer current-cls)]
     (assoc node :content [fixed-cls])))
 
-(defmethod fix-it :filename [node out-shape bbox class-fixer xml-file]
-  (let [fname (.getName xml-file)
+(defmethod fix-it :filename [node out-shape bbox class-fixer xml-file-name]
+  (let [fname xml-file-name
         len (count fname)
         fname (subs fname 0 (- len 4))
         img-name (str fname ".jpg")]
     (assoc node :content [img-name])))
 
 
-(defn create-fixer [out-shape bboxs class-fixer xml-file]
+(defn create-fixer [out-shape bboxs class-fixer xml-file-name]
   (letfn [(proc-me [z obj-idx]
                    (let [n (Z/node z)
                          bboxs (vec bboxs)]
-                     [(Z/edit z fix-it out-shape (get bboxs (dec obj-idx)) class-fixer xml-file)
+                     [(Z/edit z fix-it out-shape (get bboxs (dec obj-idx)) class-fixer xml-file-name)
                       (if (= (:tag n) :object) (inc obj-idx) obj-idx)]
                      ))
           (walk-down [z obj-idx]
@@ -156,37 +111,33 @@
       (let [[z last-obj] (walk-right (Z/xml-zip xml) 0)]
         (Z/root z)))))
 
-(defn adjust-xml [xml-file out-dir out-size bboxs class-fixer]
+(defn adjust-xml [xml-file out-xml-file [out-height out-width] bboxs class-fixer]
   (if (.exists xml-file)
-    (let [out-xml-file (io/file out-dir (.getName xml-file))
-          xml (X/parse xml-file)
-          fixer (create-fixer out-size bboxs class-fixer xml-file)
+    (let [xml (X/parse xml-file)
+          fixer (create-fixer [out-height out-width] bboxs class-fixer (.getName out-xml-file))
           new-xml (fixer xml)
           out (java.io.StringWriter.)
           _ (binding [*out* out] ;(io/writer out-xml-file)
                      (X/emit new-xml))
           xml-str (-> out .toString (.replace "\n" ""))]
       (with-open [out (io/writer out-xml-file)]
-        (.write out xml-str 0 (count xml-str))))))
+        (.write out xml-str 0 (count xml-str)))))
+  true)
 
-
-(defn get-bbox [out-shape top-clip left-clip class-fixer [img-file annon-file]]
+(defn get-bboxs [[in-height in-width] [out-height out-width] class-fixer annon-file]
   (try
     (let [xml (if (.exists annon-file) (X/parse annon-file))
           obj-map (if xml (-> xml :content reduce2map))
-          img (iu/image-read img-file)
-          [width height depth] (iu/image-shape img)
 
           objects (if xml (->> xml :content (filter #(= (:tag %) :object))))
-          bboxs (vec (filter identity (map (partial extract-bbox class-fixer) objects)))
-          clipping (get-clipping height width out-shape top-clip left-clip)
-          bboxs (map (partial adjust-resize clipping out-shape) bboxs)]
-      [img-file clipping bboxs])
+          bboxs (->> objects
+                     (map (partial extract-bbox class-fixer))
+                     (filter identity)
+                     (mapv (partial adjust-resize [in-height in-width] [out-height out-width])))]
+      bboxs)
   (catch Exception e
     (println "Error en xml file: " annon-file)
     nil)))
-
-
 
 (defn get-files-matching [dir re]
   (filter
@@ -235,60 +186,9 @@
      #{}
      xmls)))
 
-(defn captureORstop [continueRE]
-  (when (not (re-matches continueRE (read-line)))
-    (println "Abortando el proceso!!")
-    (System/exit 1)))
-
-(defn recreate-dir [dir force]
-  (let [path (.getCanonicalPath dir)]
-    (when (not force)
-      (println "Se borrara el directorio: " path)
-      (println "se va a ejecutar: rm -rf " path)
-      (println "desea continuar? teclee [Si/No] :")
-      (captureORstop #"[Ss][Ii]")
-      (println "SEGURO ??? [Si/No]")
-      (captureORstop #"[Ss][Ii]"))
-    (sh/with-sh-dir
-     "."
-     (sh/sh "rm"  "-rf" path)
-     (sh/sh "mkdir" "-p" (str path "/annotations")))))
-
-(defn capture-int [msg min max]
-  (println msg)
-  (loop []
-    (println "teclee un número entero entre " min " y " max " ?")
-    (let [n (fix/parseInt (read-line))]
-      (if (or (not n) (< n min) (> n max))
-        (recur)
-        n))))
-
-(def top-clip-msg "
-
-Si se tiene que recortar la imagen perdiendo a la vertical, qué porcentaje
-de lo que se va a eliminar de la imagen desea que se pierda de arriba?
-ej: si vamos a perder 300p a la verticar y desea que se pierda más bien
-  2 tercios (200p) de lo de arriba y un tercio (100p) de lo de abajo
-  conteste 66 (200 ~ 66 % de 300)
-")
-
-(def left-clip-msg "
-
-Si se tiene que recortar la imagen perdiendo a la horizontal, qué porcentaje
-de lo que se va a eliminar de la imagen desea que se pierda de la izquierda?
-ej: si vamos a perder 300p a la horizontal y desea que se pierda la mitad
-    (150p) de la izq y la otra mitad de la derecha
-    conteste 50 (50%)
-")
-
-;(defn transform-DS [in-dir out-dir validation-percent out-shape top left force cls-id-edn-file annon-fix-file background-percent & exts]
-;  (apply dir->csv in-dir out-dir validation-percent out-shape top left force cls-id-edn-file annon-fix-file background-percent exts))
-
-(def tmp-ds-dir "__tmp-ds-dir__")
 
 (defn all-classes-are-fine? [all-classes cls-id-edn class-fixer]
   (every? #(cls-id-edn %) (map class-fixer all-classes)))
-
 
 
 (defn pre-commit [{:keys [prefix ext in cls2id annon-fix]}]
@@ -318,3 +218,117 @@ ej: si vamos a perder 300p a la horizontal y desea que se pierda la mitad
     (println (.getMessage e))
     (println "Allways see error.log for details")
     (System/exit 1))))
+
+(defn recreate-dir [dir force]
+  (let [path (.getCanonicalPath dir)]
+    (sh/with-sh-dir
+     "."
+     (sh/sh "rm"  "-rf" path)
+     (sh/sh "mkdir" "-p" (str path "/annotations")))))
+
+(defn is-ds-dir? [dir]
+  (let [annon-dir (io/file dir "annotations")
+        with-jpg (some #(re-matches #".*\.jpg$" (.getName %)) (.listFiles dir))
+        sub-dirs (count (filter #(.isDirectory %) (.listFiles dir)))
+        with-annons (.exists annon-dir)
+        is-leaf (or (= 0 sub-dirs) (and with-annons (= 1 sub-dirs)))
+        it-is (and with-jpg is-leaf)]
+    it-is))
+
+
+
+;;;;;;;;;;;;;;;;;
+
+
+(defn adjust-resize [[in-height in-width ]
+                     [out-height out-width]
+                     {:keys [xmin xmax ymin ymax] :as bbox}]
+  (let [xmin (max 0 xmin)
+        xmax (max 0 xmax)
+        ymin (max 0 ymin)
+        ymax (max 0 ymax)
+        xmin (int (/ (* xmin out-width) in-width))
+        xmax (int (/ (* xmax out-width) in-width))
+        ymin (int (/ (* ymin out-height) in-height))
+        ymax (int (/ (* ymax out-height) in-height))]
+    (assoc bbox
+           :xmin xmin :xmax xmax
+           :ymin ymin :ymax ymax)))
+
+(defn resize&write-jpg [img out-height out-width out-jpg-file]
+  (try
+    (let [ds-img (iu/image-resize img out-height out-width)]
+      (iu/image-write ds-img out-jpg-file)
+      true)
+  (catch Exception e
+    (println (.getMessage e))
+    (println "Problems resizing/writing image file: " (.getCanonicalPath out-jpg-file) " skiping"))))
+
+(defn write2cvs-annon-file [out-dir prefix jpg-file-name boxes cls2id]
+  (with-open [out (io/writer (io/file out-dir (str "labels-" prefix ".csv")) :append true)]
+             (binding [*out* out]
+                      (doseq [{:keys [class xmin xmax ymin ymax]} boxes]
+                        (println jpg-file-name "," xmin "," xmax "," ymin "," ymax "," (cls2id class))))
+             true))
+
+(defn create-dataset-fn [out-dir prefix background-percent out-height out-width cls2id annon-fix-fn]
+  (let [out-annon-dir (doto (io/file out-dir "annotations") (.mkdirs))]
+    (fn dataset-creator [in-dir n is-ds-dir]
+      (loop [[file & files] (.listFiles in-dir) n n]
+        (cond
+          (nil? file)
+          n
+
+          (.isDirectory file)
+          (recur files (dataset-creator file n (is-ds-dir? file)))
+
+          (and (re-matches #".*\.jpg$" (.getName file)) is-ds-dir)
+          (let [annon-dir (io/file (.getParentFile file) "annotations")
+                [name ext] (u/name&ext file)
+                annon-file (io/file annon-dir (str name ".xml"))
+                out-name (format "%s.%05d" prefix n)
+                out-jpg-file (io/file out-dir (str out-name ".jpg"))
+                out-annon-file (io/file out-annon-dir (str out-name ".xml"))
+                img (iu/image-read file)
+                [img-height img-width  depth :as img-shape] (iu/image-shape img)
+                boxes (get-bboxs [img-height img-width] [out-height out-width] annon-fix-fn annon-file)
+                include-it? (or
+                             (and (.exists annon-file)
+                                  (> (count boxes) 0))
+                             (>= background-percent
+                                 (rand-int 100)))]
+            (if include-it?
+              (if (adjust-xml annon-file out-annon-file [out-height out-width] boxes annon-fix-fn)
+                (if (resize&write-jpg img out-height out-width out-jpg-file)
+                  (let [n (inc n)]
+                    (when (= 0 (mod n 10))
+                      (if (= 0 (mod n 1000))
+                        (println n)
+                        (print "."))
+                      (flush))
+                    (write2cvs-annon-file out-dir prefix (.getName out-jpg-file) boxes cls2id)
+                    (recur files n))
+                  (recur files n))
+                (recur files n))
+              (recur files n)))
+
+          :OTHERWISE
+          (recur files n))))))
+
+(defn post-commit [{:keys [prefix ext in out height width top left
+                           cls2id annon-fix background-percent]}]
+  (let [cls2id-file (io/file cls2id)
+        cls2id (if (and cls2id (.exists cls2id-file))
+                     (read-string (slurp cls2id-file)))
+        annon-fix-fn (u/read&create-fix-fn (io/file annon-fix))
+        in-dir (io/file in)
+        out-dir (io/file (format out prefix))
+        out-annon-dir (io/file out-dir "annotations")]
+    (try
+      (doseq [branch ["train" "val"]]
+        (let [creator (create-dataset-fn out-dir branch background-percent height width cls2id annon-fix-fn)]
+          (println (creator (io/file in-dir branch) 0 false))))
+      (catch Exception e
+        (println "\n\n******* ERROR ******** : " (.getMessage e))
+        (.printStackTrace e)
+        (System/exit 1)))))

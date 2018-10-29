@@ -12,15 +12,15 @@ echo "Validating commit..."
 echo "Removing grabage..."
 rm -rf dataset/._*
 
-clj -m main -c config/clean-conf.edn -P -o output/__tmp__
+clj -m main -c config/clean-conf.edn --pre-commit
 retVal=$?
 
-if [ $retVal -ne 0 ]
-then
-    rm -rf output/__tmp__
-    echo "\n\nVerifique que no existan directorios repetidos hijos de train o val ni directorios que existan tanto en train como val!"
-else
-    mv output/__tmp__ output/`cat output/ds-name.txt`
-fi
+#if [ $retVal -ne 0 ]
+#then
+#    rm -rf output/__tmp__
+#    echo "\n\nVerifique que no existan directorios repetidos hijos de train o val ni directorios que existan tanto en train como val!"
+#else
+#    mv output/__tmp__ output/`cat output/ds-name.txt`
+#fi
 
 exit $retVal

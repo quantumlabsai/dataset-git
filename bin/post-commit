@@ -1,0 +1,21 @@
+#!/bin/sh
+
+echo "Generatin dataset commit..."
+
+sha1=`git rev-parse --short HEAD`
+
+now=`date +%Y-%m-%d-%H`
+
+clj -m main -c config/clean-conf.edn -o "output/%s-$now-$sha1" --post-commit
+
+retVal=$?
+
+#if [ $retVal -ne 0 ]
+#then
+#    rm -rf output/__tmp__
+#    echo "\n\nVerifique que no existan directorios repetidos hijos de train o val ni directorios que existan tanto en train como val!"
+#else
+#    mv output/__tmp__ output/`cat output/ds-name.txt`
+#fi
+
+exit $retVal
