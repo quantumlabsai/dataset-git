@@ -6,10 +6,8 @@
    [clojure.xml :as X]
    [clojure.string :as S]
    [clojure.java.shell :as sh]
-   [fix-files :as fix]
    [ds.img-util :as iu]
-   [ds.util :as u]
-   [ds-manager :refer [create-ds-info]]))
+   [ds.util :as u]))
 
 (defn reduce2map [object & {:keys [content-extractor] :or {content-extractor identity}}]
   (try
