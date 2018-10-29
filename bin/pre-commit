@@ -11,6 +11,7 @@ echo "Validating commit..."
 
 echo "Removing grabage..."
 rm -rf dataset/._*
+find . -name ".DS_Store" -exec rm {} \;
 
 clj -m main -c config/clean-conf.edn --pre-commit
 retVal=$?
