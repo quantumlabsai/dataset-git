@@ -265,8 +265,10 @@
 (defn write2cvs-annon-file [out-dir prefix jpg-file-name boxes cls2id]
   (with-open [out (io/writer (io/file out-dir (str "labels-" prefix ".csv")) :append true)]
              (binding [*out* out]
-                      (doseq [{:keys [class xmin xmax ymin ymax]} boxes]
-                        (println (format "%s,%d,%d,%d,%d,%d" jpg-file-name xmin xmax ymin ymax (cls2id class)))))
+                      (if (seq boxes)
+                        (doseq [{:keys [class xmin xmax ymin ymax]} boxes]
+                          (println (format "%s,%d,%d,%d,%d,%d" jpg-file-name xmin xmax ymin ymax (cls2id class))))
+                        (println (format "%s,%d,%d,%d,%d,%d" jpg-file-name 0 0 0 0 0))))
              true))
 
 (defn create-dataset-fn [out-dir prefix background-percent out-height out-width cls2id annon-fix-fn]
