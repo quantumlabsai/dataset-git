@@ -93,7 +93,7 @@
       (log-error&throw "Corrupt xml files found" files-with-errors)
       (reduce
        (fn [[classes problems] [file xml]]
-         (if-let [cls (seq (extract-classes xml))]
+         (if-let [cls (seq (map #(if % % "nil") (extract-classes xml)))]
            [(into classes cls) (if (all-classes-are-fine? cls cls2id annon-fix-fn) problems (conj problems file))]
            [classes problems]))
        [#{} []]
