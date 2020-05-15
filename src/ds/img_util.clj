@@ -8,8 +8,8 @@
 (defn image-read [file]
   (try
     (ImageIO/read file)
-  (catch exception e
-    (println (format "Image: {} is broken" (.getCanonicalPath file))))))
+  (catch Exception e
+    (println (format "Image: %s is broken" (.getCanonicalPath file))))))
 
 (defn image-write [img img-file & {:keys [fmt] :or {fmt "jpg"}}]
   (ImageIO/write img fmt img-file))

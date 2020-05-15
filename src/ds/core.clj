@@ -205,7 +205,7 @@
         (println "Classes found:")
         (pp/pprint all-classes-pp)
         (when (seq problems)
-          (u/log-error "Unknown classes in xml files" (map .getCanonicalPath problems)))
+          (u/log-error "Unknown classes in xml files" (map #(.getCanonicalPath %) problems)))
         (if (u/all-classes-are-fine? all-classes cls2id annon-fix-fn)
           (let [orphan (u/find-orphan-xml root-dir)]
             (if (seq orphan)
