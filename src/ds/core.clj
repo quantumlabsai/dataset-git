@@ -205,7 +205,7 @@
         (println "Classes found:")
         (pp/pprint all-classes-pp)
         (when (seq problems)
-          (u/log-error "Unknown classes in xml files" problems))
+          (u/log-error "Unknown classes in xml files" (map .getCanonicalPath problems)))
         (if (u/all-classes-are-fine? all-classes cls2id annon-fix-fn)
           (let [orphan (u/find-orphan-xml root-dir)]
             (if (seq orphan)
@@ -291,13 +291,14 @@
                 out-jpg-file (io/file out-dir (str out-name ".jpg"))
                 out-annon-file (io/file out-annon-dir (str out-name ".xml"))
                 img (iu/image-read file)
-                [img-height img-width  depth :as img-shape] (iu/image-shape img)
+                [img-height img-width  depth :as img-shape] (and img (iu/image-shape img))
                 boxes (get-bboxs [img-height img-width] [out-height out-width] annon-fix-fn annon-file)
-                include-it? (or
-                             (and (.exists annon-file)
-                                  (> (count boxes) 0))
-                             (>= background-percent
-                                 (rand-int 100)))]
+                include-it? (and img
+                                 (or
+                                  (and (.exists annon-file)
+                                       (> (count boxes) 0))
+                                  (>= background-percent
+                                      (rand-int 100))))]
             (if include-it?
               (if (adjust-xml annon-file out-annon-file [out-height out-width] boxes annon-fix-fn)
                 (if (resize&write-jpg img out-height out-width out-jpg-file)
@@ -317,7 +318,8 @@
           (recur files n))))))
 
 (defn post-commit [{:keys [prefix ext in out height width top left
-                           cls2id annon-fix background-percent include-background-in-csv]}]
+                           cls2id annon-fix background-percent
+                           include-background-in-csv]}]
   (let [cls2id-file (io/file cls2id)
         cls2id (if (and cls2id (.exists cls2id-file))
                      (read-string (slurp cls2id-file)))
