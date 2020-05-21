@@ -303,8 +303,7 @@
                                  (or
                                   (and (.exists annon-file)
                                        (> (count boxes) 0))
-                                  (and (not (.exists annon-file))
-                                       (>= background-percent (rand-int 100)))))]
+                                  (>= background-percent (rand-int 100))))]
             (if include-it?
               (if (adjust-xml annon-file out-annon-file [out-height out-width] boxes annon-fix-fn)
                 (if (resize&write-jpg img out-height out-width out-jpg-file)
