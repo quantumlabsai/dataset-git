@@ -142,7 +142,7 @@
   (try
     (let [xml (if (.exists annon-file) (X/parse annon-file))
           objects (if xml (->> xml :content (filter #(= (:tag %) :object))))
-          ; _ (println (pr-str (:content objects)))
+          ;_ (println (pr-str (:content objects)))
           bboxs (->> objects
                      (map (partial extract-bbox class-fixer))
                      (remove #(drop-classes (:class %)))
@@ -300,7 +300,7 @@
                 img (iu/image-read file)
                 [img-height img-width  depth :as img-shape] (and img (iu/image-shape img))
                 boxes (get-bboxs [img-height img-width] [out-height out-width] annon-fix-fn annon-file drop-classes)
-                _ (println (pr-str boxes))
+                ;_ (println (pr-str boxes))
                 include-it? (and img
                                  (or
                                   (and (.exists annon-file)
