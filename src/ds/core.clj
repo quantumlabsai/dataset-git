@@ -142,6 +142,7 @@
   (try
     (let [xml (if (.exists annon-file) (X/parse annon-file))
           objects (if xml (->> xml :content (filter #(= (:tag %) :object))))
+          _ (println (pr-str objects))
           bboxs (if (seq objects)
                   (->> objects
                        (map (partial extract-bbox class-fixer))
