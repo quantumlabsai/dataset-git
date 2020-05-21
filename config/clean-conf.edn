@@ -3,6 +3,7 @@
  :ext ["jpg"],
  :cls2id "config/cls2id.edn",
  :annon-fix "config/annon-fix.edn",
+ :drop-classes "config/drop-classes",
  :height 270,
  :width 480,
  :background-percent 100,

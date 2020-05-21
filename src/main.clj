@@ -17,7 +17,7 @@
     :validate [(fn [arg]
                  (let [edn (io/file arg)]
                    (and (.exists edn) (.isFile edn)))) "Archivo edn debe existir"]]
-   ["-d" "--dropping-classes classes.edn" "Nombre del archivo edn con vector de clases a no conservar"
+   ["-d" "--drop-classes classes.edn" "Nombre del archivo edn con vector de clases a no conservar"
     :validate [(fn [arg]
                  (let [edn (io/file arg)]
                    (and (.exists edn) (.isFile edn)))) "Archivo edn debe existir"]]
@@ -90,7 +90,7 @@
         (doseq [err errors]
           (println err))
         (System/exit 1))
-      (let [{:keys [ext in out width height top left cls2id dropping-classes]} options]
+      (let [{:keys [ext in out width height top left cls2id drop-classes]} options]
         (println "Options:")
         (pp/pprint (into (sorted-map) options))
         (if (:help options)
