@@ -301,7 +301,7 @@
                 img (iu/image-read file)
                 [img-height img-width  depth :as img-shape] (and img (iu/image-shape img))
                 boxes (get-bboxs [img-height img-width] [out-height out-width] annon-fix-fn annon-file drop-classes)
-                (println (pr-str boxes))
+                _ (println (pr-str boxes))
                 include-it? (and img
                                  (or
                                   (and (.exists annon-file)
