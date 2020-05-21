@@ -142,7 +142,7 @@
   (try
     (let [xml (if (.exists annon-file) (X/parse annon-file))
           objects (if xml (->> xml :content (filter #(= (:tag %) :object))))
-          ;_ (println (pr-str (:content objects)))
+          ; _ (println (pr-str (:content objects)))
           bboxs (->> objects
                      (map (partial extract-bbox class-fixer))
                      (remove #(drop-classes (:class %)))
