@@ -28,7 +28,7 @@
               :bndbox
               (reduce2map :content-extractor (fn [content]
                                                ;(println (pr-str content))
-                                               (Integer/parseInt (S/replace (first content) #"[\n ]+" "")))))
+                                               (Math/round (Float/parseFloat (S/replace (first content) #"[\n ]+" ""))))))
         ;_ (pp/pprint bbox)
         name (-> obj-map :name first)
         name (if name (-> name (S/replace #"\n" "") class-fixer-fn))]
