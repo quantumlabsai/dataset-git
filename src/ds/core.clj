@@ -189,7 +189,7 @@
   (every? #(cls-id-edn %) (map class-fixer all-classes)))
 
 
-(defn pre-commit [{:keys [prefix ext in cls2id annon-fix]}]
+(defn pre-commit [{:keys [prefix ext in cls2id annon-fix drop-classes]}]
   (println "Removing error.log..")
   (.delete (io/file "error.log"))
   (try
@@ -200,7 +200,12 @@
             cls2id-file (io/file cls2id)
             cls2id (if (and cls2id (.exists cls2id-file))
                      (read-string (slurp cls2id-file)))
-            [all-classes problems] (u/extract-all-classes-recursively root-dir cls2id annon-fix-fn)
+            drop-classes-file (and drop-classes (io/file drop-classes))
+            drop-classes (if (and drop-classes (.exists drop-classes-file))
+                           (->> (slurp drop-classes-file)
+                                (read-string)
+                                (into #{})))
+            [all-classes problems] (u/extract-all-classes-recursively root-dir cls2id annon-fix-fn drop-classes)
             all-classes-pp (vec (sort (into [] all-classes)))]
         (println "Classes found:")
         (pp/pprint all-classes-pp)

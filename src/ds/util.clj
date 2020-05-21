@@ -82,7 +82,7 @@
 (defn all-classes-are-fine? [all-classes cls-id-edn class-fixer]
   (every? #(cls-id-edn %) (map class-fixer all-classes)))
 
-(defn extract-all-classes [annons-dir cls2id annon-fix-fn]
+(defn extract-all-classes [annons-dir cls2id annon-fix-fn drop-classes]
   (let [files&xmls (parse-xmls annons-dir)
         files-with-errors (->> files&xmls
                                (filter #(= nil (second %)))
@@ -93,24 +93,27 @@
       (log-error&throw "Corrupt xml files found" files-with-errors)
       (reduce
        (fn [[classes problems] [file xml]]
-         (if-let [cls (seq (map #(if % % "nil") (extract-classes xml)))]
+         (if-let [cls (->> (extract-classes xml)
+                           (map #(if % % "nil"))
+                           (remove #(drop-classes %))
+                           (seq))]
            [(into classes cls) (if (all-classes-are-fine? cls cls2id annon-fix-fn) problems (conj problems file))]
            [classes problems]))
        [#{} []]
        files&xmls))))
 
-(defn extract-all-classes-recursively [dir cls2id annon-fix-fn]
+(defn extract-all-classes-recursively [dir cls2id annon-fix-fn drop-classes]
   (loop [[file & files] (.listFiles dir) classes #{} problems []]
     (cond
       (not file)
       [classes problems]
 
       (and (.isDirectory file) (= "annotations" (.getName file)))
-      (let [[file-classes file-problems] (extract-all-classes file cls2id annon-fix-fn)]
+      (let [[file-classes file-problems] (extract-all-classes file cls2id annon-fix-fn drop-classes)]
         (recur files (into classes file-classes) (concat problems file-problems)))
 
       (.isDirectory file)
-      (let [[dir-classes dir-problems] (extract-all-classes-recursively file cls2id annon-fix-fn)]
+      (let [[dir-classes dir-problems] (extract-all-classes-recursively file cls2id annon-fix-fn drop-classes)]
         (recur files (into classes dir-classes) (concat problems dir-problems)))
 
       :OTHERWISE
