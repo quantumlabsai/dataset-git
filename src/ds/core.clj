@@ -301,6 +301,7 @@
                 img (iu/image-read file)
                 [img-height img-width  depth :as img-shape] (and img (iu/image-shape img))
                 boxes (get-bboxs [img-height img-width] [out-height out-width] annon-fix-fn annon-file drop-classes)
+                (println (pr-str boxes))
                 include-it? (and img
                                  (or
                                   (and (.exists annon-file)
@@ -315,7 +316,7 @@
                         (println n)
                         (print "."))
                       (flush))
-                    (println (pr-str boxes))
+
                     (write2cvs-annon-file include-background-in-csv out-dir prefix (.getName out-jpg-file) boxes cls2id)
                     (recur files n))
                   (recur files n))
