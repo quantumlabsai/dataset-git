@@ -191,6 +191,8 @@
 
 (defn pre-commit [{:keys [prefix ext in cls2id annon-fix drop-classes]}]
   (println "Removing error.log..")
+  (println "drop-classes: ")
+  (pp/pprint drop-classes)
   (.delete (io/file "error.log"))
   (try
     (let [root-dir (io/file in)
