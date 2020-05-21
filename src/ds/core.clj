@@ -142,10 +142,11 @@
   (try
     (let [xml (if (.exists annon-file) (X/parse annon-file))
           objects (if xml (->> xml :content (filter #(= (:tag %) :object))))
-          bboxs (->> objects
-                     (map (partial extract-bbox class-fixer))
-                     (remove #(drop-classes (:class %)))
-                     (mapv (partial adjust-resize [in-height in-width] [out-height out-width])))]
+          bboxs (if (seq objects)
+                  (->> objects
+                       (map (partial extract-bbox class-fixer))
+                       (remove #(drop-classes (:class %)))
+                       (mapv (partial adjust-resize [in-height in-width] [out-height out-width]))))]
       bboxs)
   (catch Exception e
     (println "Error en xml file: " annon-file)
