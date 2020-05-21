@@ -35,20 +35,36 @@
     (when (and name bbox)
       (assoc bbox :class name))))
 
-(defn adjust-resize [{:keys [left-init top-init new-width new-height]}
-                     [out-height out-width :as out-shape]
+;(defn adjust-resize [{:keys [left-init top-init new-width new-height]}
+;                     [out-height out-width :as out-shape]
+;                     {:keys [xmin xmax ymin ymax] :as bbox}]
+;  (let [xmin (max 0 (- xmin left-init))
+;        xmax (max 0 (- xmax left-init))
+;        ymin (max 0 (- ymin top-init))
+;        ymax (max 0 (- ymax top-init))
+;        xmin (int (/ (* xmin out-width) new-width))
+;        xmax (int (/ (* xmax out-width) new-width))
+;        ymin (int (/ (* ymin out-height) new-height))
+;        ymax (int (/ (* ymax out-height) new-height))]
+;    (assoc bbox
+;           :xmin (int xmin) :xmax (int xmax)
+;           :ymin (int ymin) :ymax (int ymax))))
+
+(defn adjust-resize [[in-height in-width ]
+                     [out-height out-width]
                      {:keys [xmin xmax ymin ymax] :as bbox}]
-  (let [xmin (max 0 (- xmin left-init))
-        xmax (max 0 (- xmax left-init))
-        ymin (max 0 (- ymin top-init))
-        ymax (max 0 (- ymax top-init))
-        xmin (int (/ (* xmin out-width) new-width))
-        xmax (int (/ (* xmax out-width) new-width))
-        ymin (int (/ (* ymin out-height) new-height))
-        ymax (int (/ (* ymax out-height) new-height))]
+  (let [xmin (max 0 xmin)
+        xmax (max 0 xmax)
+        ymin (max 0 ymin)
+        ymax (max 0 ymax)
+        xmin (int (/ (* xmin out-width) in-width))
+        xmax (int (/ (* xmax out-width) in-width))
+        ymin (int (/ (* ymin out-height) in-height))
+        ymax (int (/ (* ymax out-height) in-height))]
     (assoc bbox
-           :xmin (int xmin) :xmax (int xmax)
-           :ymin (int ymin) :ymax (int ymax))))
+           :xmin xmin :xmax xmax
+           :ymin ymin :ymax ymax)))
+
 
 (defmulti fix-it (fn [{:keys [tag]} out-shape bbox class-fixer xml-file-name]
                    (or tag :default)))
@@ -122,15 +138,13 @@
         (.write out xml-str 0 (count xml-str)))))
   true)
 
-(defn get-bboxs [[in-height in-width] [out-height out-width] class-fixer annon-file]
+(defn get-bboxs [[in-height in-width] [out-height out-width] class-fixer annon-file drop-classes]
   (try
     (let [xml (if (.exists annon-file) (X/parse annon-file))
-          obj-map (if xml (-> xml :content reduce2map))
-
           objects (if xml (->> xml :content (filter #(= (:tag %) :object))))
           bboxs (->> objects
                      (map (partial extract-bbox class-fixer))
-                     (filter identity)
+                     (remove #(drop-classes (:class %)))
                      (mapv (partial adjust-resize [in-height in-width] [out-height out-width])))]
       bboxs)
   (catch Exception e
@@ -191,8 +205,7 @@
 
 (defn pre-commit [{:keys [prefix ext in cls2id annon-fix drop-classes]}]
   (println "Removing error.log..")
-  (println "drop-classes: ")
-  (pp/pprint drop-classes)
+  (println "drop-classes: " drop-classes)
   (.delete (io/file "error.log"))
   (try
     (let [root-dir (io/file in)
@@ -206,7 +219,8 @@
             drop-classes (if (and drop-classes (.exists drop-classes-file))
                            (->> (slurp drop-classes-file)
                                 (read-string)
-                                (into #{})))
+                                (into #{}))
+                           #{})
             [all-classes problems] (u/extract-all-classes-recursively root-dir cls2id annon-fix-fn drop-classes)
             all-classes-pp (vec (sort (into [] all-classes)))]
         (println "Classes found:")
@@ -245,21 +259,6 @@
 ;;;;;;;;;;;;;;;;;
 
 
-(defn adjust-resize [[in-height in-width ]
-                     [out-height out-width]
-                     {:keys [xmin xmax ymin ymax] :as bbox}]
-  (let [xmin (max 0 xmin)
-        xmax (max 0 xmax)
-        ymin (max 0 ymin)
-        ymax (max 0 ymax)
-        xmin (int (/ (* xmin out-width) in-width))
-        xmax (int (/ (* xmax out-width) in-width))
-        ymin (int (/ (* ymin out-height) in-height))
-        ymax (int (/ (* ymax out-height) in-height))]
-    (assoc bbox
-           :xmin xmin :xmax xmax
-           :ymin ymin :ymax ymax)))
-
 (defn resize&write-jpg [img out-height out-width out-jpg-file]
   (try
     (let [ds-img (iu/image-resize img out-height out-width)]
@@ -279,7 +278,7 @@
                           (println (format "%s,%d,%d,%d,%d,%d" jpg-file-name 0 0 0 0 0)))))
              true))
 
-(defn create-dataset-fn [out-dir prefix background-percent include-background-in-csv out-height out-width cls2id annon-fix-fn]
+(defn create-dataset-fn [out-dir prefix background-percent include-background-in-csv out-height out-width cls2id annon-fix-fn drop-classes]
   (let [out-annon-dir (doto (io/file out-dir "annotations") (.mkdirs))]
     (fn dataset-creator [in-dir n is-ds-dir]
       (loop [[file & files] (.listFiles in-dir) n n]
@@ -299,13 +298,13 @@
                 out-annon-file (io/file out-annon-dir (str out-name ".xml"))
                 img (iu/image-read file)
                 [img-height img-width  depth :as img-shape] (and img (iu/image-shape img))
-                boxes (get-bboxs [img-height img-width] [out-height out-width] annon-fix-fn annon-file)
+                boxes (get-bboxs [img-height img-width] [out-height out-width] annon-fix-fn annon-file drop-classes)
                 include-it? (and img
                                  (or
                                   (and (.exists annon-file)
                                        (> (count boxes) 0))
-                                  (>= background-percent
-                                      (rand-int 100))))]
+                                  (and (not (.exits annof-file))
+                                       (>= background-percent (rand-int 100)))))]
             (if include-it?
               (if (adjust-xml annon-file out-annon-file [out-height out-width] boxes annon-fix-fn)
                 (if (resize&write-jpg img out-height out-width out-jpg-file)
@@ -325,18 +324,24 @@
           (recur files n))))))
 
 (defn post-commit [{:keys [prefix ext in out height width top left
-                           cls2id annon-fix background-percent
+                           cls2id annon-fix drop-classes background-percent
                            include-background-in-csv]}]
   (let [cls2id-file (io/file cls2id)
         cls2id (if (and cls2id (.exists cls2id-file))
                      (read-string (slurp cls2id-file)))
         annon-fix-fn (u/read&create-fix-fn (io/file annon-fix))
+        drop-classes-file (and drop-classes (io/file drop-classes))
+        drop-classes (if (and drop-classes (.exists drop-classes-file))
+                       (->> (slurp drop-classes-file)
+                            (read-string)
+                            (into #{}))
+                       #{})
         in-dir (io/file in)
         out-dir (io/file (format out prefix))
         out-annon-dir (io/file out-dir "annotations")]
     (try
       (doseq [branch ["train" "val"]]
-        (let [creator (create-dataset-fn out-dir branch background-percent include-background-in-csv height width cls2id annon-fix-fn)]
+        (let [creator (create-dataset-fn out-dir branch background-percent include-background-in-csv height width cls2id annon-fix-fn drop-classes)]
           (println (creator (io/file in-dir branch) 0 false))))
       (catch Exception e
         (println "\n\n******* ERROR ******** : " (.getMessage e))
