@@ -269,17 +269,16 @@
     (println (.getMessage e))
     (println "Problems resizing/writing image file: " (.getCanonicalPath out-jpg-file) " skiping"))))
 
-(defn write2cvs-annon-file [include-background-in-csv out-dir prefix jpg-file-name boxes cls2id]
+(defn write2cvs-annon-file [out-dir prefix jpg-file-name boxes cls2id]
   (with-open [out (io/writer (io/file out-dir (str "labels-" prefix ".csv")) :append true)]
              (binding [*out* out]
                       (if (seq boxes)
                         (doseq [{:keys [class xmin xmax ymin ymax]} boxes]
                           (println (format "%s,%d,%d,%d,%d,%d" jpg-file-name xmin xmax ymin ymax (cls2id class))))
-                        (if include-background-in-csv
-                          (println (format "%s,%d,%d,%d,%d,%d" jpg-file-name 0 0 0 0 0)))))
+                        (println (format "%s,%d,%d,%d,%d,%d" jpg-file-name 0 0 0 0 0))))
              true))
 
-(defn create-dataset-fn [out-dir prefix background-percent include-background-in-csv out-height out-width cls2id annon-fix-fn drop-classes]
+(defn create-dataset-fn [out-dir prefix background-percent out-height out-width cls2id annon-fix-fn drop-classes]
   (let [out-annon-dir (doto (io/file out-dir "annotations") (.mkdirs))]
     (fn dataset-creator [in-dir n is-ds-dir]
       (loop [[file & files] (.listFiles in-dir) n n]
@@ -316,7 +315,7 @@
                         (print "."))
                       (flush))
 
-                    (write2cvs-annon-file include-background-in-csv out-dir prefix (.getName out-jpg-file) boxes cls2id)
+                    (write2cvs-annon-file out-dir prefix (.getName out-jpg-file) boxes cls2id)
                     (recur files n))
                   (recur files n))
                 (recur files n))
@@ -327,7 +326,7 @@
 
 (defn post-commit [{:keys [prefix ext in out height width top left
                            cls2id annon-fix drop-classes background-percent
-                           include-background-in-csv]}]
+                           ]}]
   (let [cls2id-file (io/file cls2id)
         cls2id (if (and cls2id (.exists cls2id-file))
                      (read-string (slurp cls2id-file)))
@@ -343,7 +342,7 @@
         out-annon-dir (io/file out-dir "annotations")]
     (try
       (doseq [branch ["train" "val"]]
-        (let [creator (create-dataset-fn out-dir branch background-percent include-background-in-csv height width cls2id annon-fix-fn drop-classes)]
+        (let [creator (create-dataset-fn out-dir branch background-percent height width cls2id annon-fix-fn drop-classes)]
           (println (creator (io/file in-dir branch) 0 false))))
       (catch Exception e
         (println "\n\n******* ERROR ******** : " (.getMessage e))
