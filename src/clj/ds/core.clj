@@ -211,6 +211,7 @@
   (try
     (let [root-dir (io/file in)
           ds-info (u/create-ds-info root-dir)]
+      (println "ds-info.....")
       (u/print-ds-info ds-info)
       (let [annon-fix-fn (u/read&create-fix-fn (io/file annon-fix))
             cls2id-file (io/file cls2id)
