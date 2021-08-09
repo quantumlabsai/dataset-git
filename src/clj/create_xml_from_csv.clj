@@ -20,6 +20,7 @@
     (apply merge {}
      (map (fn [label-file]
             (let [csv-file (io/file root label-file)
+                  _ (println "reading:" (.getCanonicalPath csv-file))
                   lines (line-seq (io/reader csv-file))]
               (reduce
                read-one-label
@@ -82,9 +83,10 @@
 (def cli-options
   ;; An option with a required argument
   [["-h" "--help"]
-   ["-i" "--in dir" "Input images directory"
+   ["-i" "--in-dir DIR" "Input images directory"
     :validate [(fn [arg]
                  (let [dir (io/file arg)]
+                   (println ":" (.getCanonicalPath dir))
                    (and (.exists dir) (.isDirectory dir)))) "Directorio debe existir"]]
    ])
 
@@ -97,8 +99,9 @@
           (println err))
         (System/exit 1))
       (let [{:keys [help in-dir]} options]
-        (println "Options:")
+        (println "Options: " in-dir)
         (pp/pprint (into (sorted-map) options))
+        (println "--->" (.getCanonicalPath (io/file in-dir)))
         (if help
           (println (:summary m))
           (let [labels (load_csvs in-dir ["labels-train.csv" "labels-val.csv"])]
