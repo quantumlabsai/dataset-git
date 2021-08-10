@@ -27,7 +27,7 @@
         objects (->> (Z/children zip)
                      (filter (partial filter-obj-cls #{"1" "2" "5"}))
                      (mapv node2vec))]
-    (println :-> (count objects) (first objects))
+    ;(println :-> (count objects) (first objects))
     (when (and (seq objects)
                (= 1 (count objects))
                (= 1 (ffirst objects))
