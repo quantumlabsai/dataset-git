@@ -6,7 +6,7 @@ sha1=`git rev-parse --short HEAD`
 
 now=`date +%Y-%m-%d-%H`
 
-clj -m main -c config/clean-conf.edn -o "output/%s-$now-$sha1" --post-commit
+clj -M -m main -c config/clean-conf.edn -o "output/%s-$now-$sha1" --post-commit
 
 retVal=$?
 
