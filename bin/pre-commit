@@ -13,7 +13,7 @@ echo "Removing grabage..."
 rm -rf dataset/._*
 find . -name ".DS_Store" -exec rm {} \;
 
-clj -m main -c config/clean-conf.edn --pre-commit
+clj -M -m main -c config/clean-conf.edn --pre-commit
 retVal=$?
 
 #if [ $retVal -ne 0 ]
