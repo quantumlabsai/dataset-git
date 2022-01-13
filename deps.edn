@@ -1,5 +1,5 @@
-{:deps {org.clojure/clojure {:mvn/version "1.10.3"}} 
- ;{org.clojure/tools.cli {:mvn/version "1.10.3.933"}}
+{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        org.clojure/tools.cli {:mvn/version "1.0.206"}}
  :paths ["src/clj"]
  :aliases {:repl/nrepl {:extra-deps {nrepl/nrepl                {:mvn/version "0.8.3"}}
                         :main-opts  ["-m" "nrepl.cmdline"]}}
