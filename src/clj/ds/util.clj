@@ -119,15 +119,24 @@
       :OTHERWISE
       (recur files classes problems))))
 
+(defn correct-annon-subdir [dir]
+  (let [annons-dir (filter #(and (.isDirectory %)
+                                 (.equalsIgnoreCase (.getName %) "annotatios"))
+                           (.listFiles dir))]
+    (when (and (= (count annons-dir) 1)
+               (not (.equals (.getName (first annons-dir)) "annotations")))
+      (.renameTo (first annons-dir) "annotations")
+      (println "renaming " (.getCanonicalPath (first annons-dir)) " -> annotations"))))
 
 (defn is-ds-dir? [dir]
+  (correct-annon-subdir dir)
   (let [annon-dir (io/file dir "annotations")
         with-jpg (some #(re-matches #".*\.jpg$" (.getName %)) (.listFiles dir))
         sub-dirs (count (filter #(.isDirectory %) (.listFiles dir)))
         with-annons (.exists annon-dir)
         is-leaf (or (= 0 sub-dirs) (and with-annons (= 1 sub-dirs)))
         it-is (and with-jpg is-leaf)]
-    (if it-is
+    (when it-is
       {:jpg (count (filter #(re-matches #".*\.jpg$" (.getName %)) (.listFiles dir)))
        :xml (if with-annons (count (filter #(re-matches #".*\.xml$" (.getName %)) (.listFiles annon-dir))) 0)})))
 
@@ -159,12 +168,12 @@
   (let [train-dir (io/file root-dir "train")
         val-dir (io/file root-dir "val")
         [train-set train-jpg train-xml] (create-ds-set train-dir {} {} 0 0)
-        [val-set val-jpg val-xml] (create-ds-set val-dir train-set {} 0 0)]
-    (let [result {:train (into (sorted-map) train-set)
-                  :train-total {:images train-jpg :xml train-xml}
-                  :val (into (sorted-map) val-set)
-                  :val-total {:images val-jpg :xml val-xml}}]
-      result)))
+        [val-set val-jpg val-xml] (create-ds-set val-dir train-set {} 0 0)
+        result {:train (into (sorted-map) train-set)
+                :train-total {:images train-jpg :xml train-xml}
+                :val (into (sorted-map) val-set)
+                :val-total {:images val-jpg :xml val-xml}}]
+    result))
 
 (defn print-ds-info [ds-info]
   (pp/pprint ds-info)

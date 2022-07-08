@@ -215,7 +215,7 @@
       (u/print-ds-info ds-info)
       (let [annon-fix-fn (u/read&create-fix-fn (io/file annon-fix))
             cls2id-file (io/file cls2id)
-            cls2id (if (and cls2id (.exists cls2id-file))
+            cls2id (when (and cls2id (.exists cls2id-file))
                      (read-string (slurp cls2id-file)))
             drop-classes-file (and drop-classes (io/file drop-classes))
             drop-classes (if (and drop-classes (.exists drop-classes-file))
@@ -231,7 +231,7 @@
           (u/log-error "Unknown classes in xml files" (map #(.getCanonicalPath %) problems)))
         (if (u/all-classes-are-fine? all-classes cls2id annon-fix-fn)
           (let [orphan (u/find-orphan-xml root-dir)]
-            (if (seq orphan)
+            (when (seq orphan)
               (u/log-error "This xml files are orphan (with no corresponding .jpg)" orphan))
             (println "All fine, commit approved!"))
           (throw (Exception. (format "Commit rejected, can't narrow classes %s -> %s" all-classes-pp (vec (sort (keys cls2id)))))))))
@@ -329,8 +329,8 @@
                            cls2id annon-fix drop-classes background-percent
                            ]}]
   (let [cls2id-file (io/file cls2id)
-        cls2id (if (and cls2id (.exists cls2id-file))
-                     (read-string (slurp cls2id-file)))
+        cls2id (when (and cls2id (.exists cls2id-file))
+                 (read-string (slurp cls2id-file)))
         annon-fix-fn (u/read&create-fix-fn (io/file annon-fix))
         drop-classes-file (and drop-classes (io/file drop-classes))
         drop-classes (if (and drop-classes (.exists drop-classes-file))
